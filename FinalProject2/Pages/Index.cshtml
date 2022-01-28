@@ -1,0 +1,282 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+
+<style>
+    div {
+        text-align:center;
+        width:80% ;
+        margin: auto;
+
+
+    }
+
+    #buton1{color:red}
+    buton1.click{}
+
+</style>
+<head>
+    <meta charset="utf-8" />
+    <title>Microsoft Cognitive Services Demo</title>
+    <meta charset="utf-8" />
+</head>
+<body>
+    <div>
+        <h1>WELCOME TO CHATBOT</h1>
+        <h3>Please ask your questions below</h3>
+
+        <iframe src='https://webchat.botframework.com/embed/finalqnamaker-bot?s=pBa9DZyoxa0.QahstCXZSwkoK1VLrFJHCjXvJt8CkroImAkMSycajtM'  style='min-width: 400px; width: 100%; min-height: 500px;'></iframe>
+
+    </div>
+   <?xml version="1.0" encoding="utf-8"?>
+  
+
+ <div id="content" style="display:none">
+
+        <table width="100%">
+            
+            <tr>
+                <td align="right" style="display:none;">Your Speech Resource Key</td>
+                <td>
+
+                    <input id="resourceKey" type="text" size="40" placeholder="Your resource key (32 characters)" value="b3d6cf9b3a104b9fb21a2c7a1788eeb0"
+                           onblur="updateSrc()" style="display:none;">
+
+            </tr>
+            <tr>
+                <td align="right" style="display:none;">Your Speech Resource region</td>
+                <td>
+                    <input id="resourceRegion" type="text" size="40" placeholder="Your resource region" value="eastus" style="display:none;"
+                           onblur="updateSrc()">
+
+                </td>
+            </tr>
+            <tr>
+                <td align="right" valign="top">Input Text (max 255 char)</td>
+                <td>
+                    <textarea id="phraseDiv" style="display: inline-block;width:500px;height:50px" maxlength="255"
+                              onblur="updateSrc()">welcome to final project</textarea>
+                </td>
+            </tr>
+            <tr>
+                <td align="right">
+                    Stream directly from Azure Cognitive Services
+                </td>
+                <td>
+                    <div>
+                        <button id="clientAudioAzure" onclick="getSpeechFromAzure()">Get directly from Azure</button>
+                    </div>
+                </td>
+            </tr>
+
+           
+
+    <!-- Speech SDK reference sdk. -->
+    <script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@latest/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js">
+    </script>
+
+    <!-- Speech SDK USAGE -->
+    <script>
+        // status fields and start button in UI
+        var phraseDiv;
+        var resultDiv;
+
+        // subscription key and region for speech services.
+        var resourceKey = null;
+        var resourceRegion = "eastus";
+        var authorizationToken;
+        var SpeechSDK;
+        var synthesizer;
+
+        var phrase = "welcome to final project"
+        var queryString = null;
+
+        var audioType = "audio/mpeg";
+        var serverSrc = "/text-to-speech";
+
+        document.getElementById('serverAudioStream').disabled = true;
+        document.getElementById('serverAudioFile').disabled = true;
+        document.getElementById('clientAudioAzure').disabled = true;
+
+        // update src URL query string for Express.js server
+        function updateSrc() {
+
+            // input values
+            resourceKey = document.getElementById('resourceKey').value.trim();
+            resourceRegion = document.getElementById('resourceRegion').value.trim();
+            phrase = document.getElementById('phraseDiv').value.trim();
+
+            // server control - by file
+            var serverAudioFileControl = document.getElementById('serverAudioFile');
+            queryString += `%file=true`;
+            const fileQueryString = `file=true&region=${resourceRegion}&key=${resourceKey}&phrase=${phrase}`;
+            serverAudioFileControl.src = `${serverSrc}?${fileQueryString}`;
+            console.log(serverAudioFileControl.src)
+            serverAudioFileControl.type = "audio/mpeg";
+            serverAudioFileControl.disabled = false;
+
+            // server control - by stream
+            var serverAudioStreamControl = document.getElementById('serverAudioStream');
+            const streamQueryString = `region=${resourceRegion}&key=${resourceKey}&phrase=${phrase}`;
+            serverAudioStreamControl.src = `${serverSrc}?${streamQueryString}`;
+            console.log(serverAudioStreamControl.src)
+            serverAudioStreamControl.type = "audio/mpeg";
+            serverAudioStreamControl.disabled = false;
+
+            // client control
+            var clientAudioAzureControl = document.getElementById('clientAudioAzure');
+            clientAudioAzureControl.disabled = false;
+
+        }
+
+        function DisplayError(error) {
+            window.alert(JSON.stringify(error));
+        }
+
+        // Client-side request directly to Azure Cognitive Services
+        function getSpeechFromAzure() {
+
+            // authorization for Speech service
+            var speechConfig = SpeechSDK.SpeechConfig.fromSubscription(resourceKey, resourceRegion);
+
+            // new Speech object
+            synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig);
+
+            synthesizer.speakTextAsync(
+                phrase,
+                function (result) {
+
+                    // Success function
+
+                    // display status
+                    if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
+
+                        // load client-side audio control from Azure response
+                        audioElement = document.getElementById("clientAudioAzure");
+                        const blob = new Blob([result.audioData], { type: "audio/mpeg" });
+                        const url = window.URL.createObjectURL(blob);
+
+                    } else if (result.reason === SpeechSDK.ResultReason.Canceled) {
+                        // display Error
+                        throw (result.errorDetails);
+                    }
+
+                    // clean up
+                    synthesizer.close();
+                    
+                },
+                function (err) {
+
+                    // Error function
+                    throw (err);
+                    audioElement = document.getElementById("audioControl");
+                    audioElement.disabled = true;
+
+                    // clean up
+                    synthesizer.close();
+                    
+                });
+
+        }
+
+        // Initialization
+        document.addEventListener("DOMContentLoaded", function () {
+
+            var clientAudioAzureControl = document.getElementById("clientAudioAzure");
+            var resultDiv = document.getElementById("resultDiv");
+
+            resourceKey = document.getElementById('resourceKey').value;
+            resourceRegion = document.getElementById('resourceRegion').value;
+            phrase = document.getElementById('phraseDiv').value;
+            if (!!window.SpeechSDK) {
+                SpeechSDK = window.SpeechSDK;
+                clientAudioAzure.disabled = false;
+
+                document.getElementById('content').style.display = 'block';
+            }
+        }
+        
+        
+        );
+
+    </script>
+
+    
+
+    <div >
+        
+  
+                <button id="startRecognizeAsyncButton">Start recognition</button>
+                <button id="stopRecognizeAsyncButton">Stop recognition</button>
+   
+    </div>
+
+    <script src="microsoft.cognitiveservices.speech.sdk.bundle.js"></script>
+
+    <script>
+        // status fields and start button in UI
+        var subscriptionKey = "b3d6cf9b3a104b9fb21a2c7a1788eeb0";
+        var serviceRegion = "eastus";
+        var phraseDiv;
+        var startRecognizeAsyncButton;
+        var stopRecognizeAsyncButton;
+        var SpeechSDK;
+        var recognizer;
+        var xx;
+        document.addEventListener("DOMContentLoaded", function () {
+            startRecognizeAsyncButton = document.getElementById("startRecognizeAsyncButton");
+            stopRecognizeAsyncButton = document.getElementById("stopRecognizeAsyncButton");
+            stopRecognizeAsyncButton.disabled = true;
+            phraseDiv = document.getElementById("phraseDiv");
+            var speechConfig;
+            speechConfig = SpeechSDK.SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
+            speechConfig.speechRecognitionLanguage = "en-US";
+            var audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+            recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+
+            startRecognizeAsyncButton.addEventListener("click", function () {
+                startRecognizeAsyncButton.disabled = true;
+                stopRecognizeAsyncButton.disabled = false;
+                phraseDiv.innerHTML = "";
+
+                recognizer.startContinuousRecognitionAsync();
+                recognizer.recognized = function (s, e) {
+                    if(e.result.text.trim()!="undefined"){
+                        phraseDiv.innerHTML += e.result.text;
+                    }};
+            });
+
+            stopRecognizeAsyncButton.addEventListener("click", function () {
+                startRecognizeAsyncButton.disabled = false;
+                stopRecognizeAsyncButton.disabled = true;
+                recognizer.stopContinuousRecognitionAsync();
+
+            });
+            if (!!window.SpeechSDK) {
+                SpeechSDK = window.SpeechSDK;
+                startRecognizeAsyncButton.disabled = false;
+                document.getElementById('content').style.display = 'block';
+                document.getElementById('warning').style.display = 'none';
+                // in case we have a function for getting an authorization token, call it.
+                if (typeof RequestAuthorizationToken === "function") {
+                    RequestAuthorizationToken();
+                }
+            }
+        });
+    </script>
+   
+</body>
+
+
+
+
+   
+
+
+
+
+
+
